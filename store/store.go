@@ -61,6 +61,9 @@ func (a *AnimalStore) FetchAll() ([]models.Animal, error) {
 	ctx := context.TODO()
 	var animals []models.Animal
 	cursor, err := a.Collection.Find(ctx, bson.D{})
+	if err != nil {
+		return nil, err
+	}
 	defer cursor.Close(ctx)
 	for cursor.Next(ctx) {
 		var animal models.Animal
