@@ -30,7 +30,7 @@ func main() {
 			WriteTimeout    time.Duration `conf:"default:10s"`
 			IdleTimeout     time.Duration `conf:"default:120s"`
 			ShutdownTimeout time.Duration `conf:"default:20s"`
-			MongoUri        string        `conf:"default:mongodb://localhost:27017,mask"`
+			MongoUri        string        `conf:"default:mongodb://mongo:27017,mask"`
 		}
 	}{
 		Version: conf.Version{
@@ -71,7 +71,7 @@ func main() {
 	animalSrv := server.New(store)
 
 	go func() {
-		log.Println("Starting server")
+		log.Printf("Starting server on %s", cfg.Web.APIHost)
 		serverErrors <- http.ListenAndServe(cfg.Web.APIHost, animalSrv)
 	}()
 	select {

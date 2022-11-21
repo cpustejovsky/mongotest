@@ -1,0 +1,14 @@
+# syntax=docker/dockerfile:1
+FROM golang:1.19
+
+COPY . /mongotest
+
+WORKDIR /mongotest/cmd/web
+
+RUN go build -o mongotest
+
+EXPOSE 3000
+
+EXPOSE 27017
+
+CMD [ "./mongotest" ]
