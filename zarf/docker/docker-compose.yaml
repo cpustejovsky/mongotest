@@ -1,8 +1,8 @@
-version: "0.0.1"
+version: "3"
 services:
   app:
     restart: always
-    image: mongotest
+    image: cpustejovsky/mongotest
     ports:
       - "3000:3000"
     depends_on:
@@ -11,9 +11,7 @@ services:
     container_name: mongo
     image: mongo
     restart: always
-    expose:
-      - "27017:27017"
-#    volumes:
+    volumes:
       - /data/db
     ports:
       - "27017:27017"

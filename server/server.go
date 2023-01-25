@@ -22,10 +22,15 @@ func New(store store.Repository) *AnimalServer {
 
 func (s *AnimalServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	router := httprouter.New()
+	router.GET("/ping", s.pingHandler)
 	router.GET("/animals", s.animalsHandler)
 	router.GET("/animal/:id", s.animalHandler)
 	router.POST("/animal/new", s.newAnimalHandler)
 	router.ServeHTTP(w, r)
+}
+
+func (s *AnimalServer) pingHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	fmt.Fprint(w, "Howdy Ho!")
 }
 
 func (s *AnimalServer) animalHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
