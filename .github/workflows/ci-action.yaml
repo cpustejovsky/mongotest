@@ -1,0 +1,190 @@
+---
+name: CI actions
+
+on:
+  # on the event of pushing to main branch or a pull request
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build-image:
+    name: Build Images
+    runs-on: ubuntu-latest
+
+    permissions:
+      packages: write # needed to push docker image to ghcr.io
+      pull-requests: write # needed to create and update comments in PRs
+      contents: read # for actions/checkout to fetch code
+      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+
+    steps:
+
+      - name: Checkout git repo
+        uses: actions/checkout@v3
+
+      # Sets up QEMU to build image for all the specified platforms
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      # Speeds up build by caching the layers of the image.
+      # What happens on local but for the distributed system of a CI pipeline
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          # GHA secrets
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Unit Testing
+      - name: Build and export to Docker
+        uses: docker/build-push-action@v2
+        with:
+          push: false
+          load: true # Export to Docker Engine rather than pushing to a registry
+          tags: ${{ github.run_id }}
+          target: test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+        # for simple tests (npm test, etc.) just run a local image in docker
+      - name: Unit Testing in Docker
+        run: |
+          docker run --rm ${{ github.run_id }} echo "run test commands here"
+
+        # for more advanced tests, use docker compose with `depends_on`
+          # NOTE: GHA and other CIs can also run dependency containers on their own
+          # GHA `services:` can do this if you're trying to avoid docker compose
+      #TODO: Figure out if there's a way to do this with kubernetes?
+      - name: Test healthcheck in Docker Compose
+        run: |
+          export TESTING_IMAGE="${{ github.run_id }}"
+          docker compose -f docker-compose.test.yml up --exit-code-from sut
+
+
+      - name: Login to ghcr.io registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push to GHCR
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ghcr.io/bretfisher/allhands22:${{ github.run_id }}
+          target: test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Run Trivy for all CVEs (non-blocking)
+        uses: aquasecurity/trivy-action@master
+        with:
+          # Unique tag for each GHA run (same for re-runs, but unique otherwise)
+          image-ref: ${{ github.run_id }}
+          # non-blocking error to use until all vulnerabilities are patched
+          exit-code: 0
+          format: table
+
+      - name: Run Trivy for HIGH,CRITICAL CVEs and report (blocking)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ github.run_id }}
+          exit-code: 1
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v1
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - uses: AbsaOSS/k3d-action@v2
+        with:
+          cluster-name: "test-cluster-1"
+          args: >-
+            --agents 1
+            --no-lb
+            --k3s-arg "--no-deploy=traefik,servicelb,metrics-server@server:*"
+
+      - name: Smoke test deployment in k3d Kubernetes
+#       shell script
+#       create secret
+#       export image tag to test via env var
+#       using yaml file to injects env vars into yaml
+        run: |
+          kubectl create secret docker-registry regcred \
+            --docker-server=https://ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }}
+          export TESTING_IMAGE=ghcr.io/bretfisher/allhands22:"$GITHUB_RUN_ID"
+          envsubst < manifests/deployment.yaml  | kubectl apply -f -
+          kubectl rollout status deployment myapp
+          kubectl exec deploy/myapp -- curl --fail localhost
+
+      # Add metadata for releases, repo info, etc.
+      - name: Docker Metadata for Final Image Build
+        id: docker_meta
+        uses: docker/metadata-action@v3
+        with:
+          images: bretfisher/allhands22,ghcr.io/bretfisher/allhands22
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=10
+            type=raw,value=latest,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
+            type=ref,event=pr
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Docker Build and Push to Docker Hub
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          # tags and labels applied
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+
+        # If PR, put image tags in the PR comments
+        # from https://github.com/marketplace/actions/create-or-update-comment
+      - name: Find comment for image tags
+        uses: peter-evans/find-comment@v1
+        if: github.event_name == 'pull_request'
+        id: fc
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: Docker image tag(s) pushed
+
+        # If PR, put image tags in the PR comments
+      - name: Create or update comment for image tags
+        uses: peter-evans/create-or-update-comment@v1
+        if: github.event_name == 'pull_request'
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            Docker image tag(s) pushed:
+            ```text
+            ${{ steps.docker_meta.outputs.tags }}
+            ```
+
+            Labels added to images:
+            ```text
+            ${{ steps.docker_meta.outputs.labels }}
+            ```
+          edit-mode: replace
