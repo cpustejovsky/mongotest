@@ -1,0 +1,21 @@
+version: "3"
+services:
+  mongotest:
+    image: "${TESTING_IMAGE}"
+  mongo:
+    container_name: mongo
+    image: mongo
+    restart: always
+    volumes:
+      - /data/db
+    ports:
+      - "27017:27017"
+  sut:
+    image: "${TESTING_IMAGE}"
+    depends_on:
+      mongotest:
+        condition: service_started
+      mongo:
+        condition: service_healthy
+    # run all your tests here against the mongotest service
+    command: curl --fail http://mongotest:3000/animals || exit 1
