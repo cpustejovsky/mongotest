@@ -13,6 +13,9 @@ import (
 )
 
 func TestAnimalStore(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping acceptance test")
+	}
 	clientOptions := options.Client().
 		ApplyURI("mongodb://localhost:27017/mongotest")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
