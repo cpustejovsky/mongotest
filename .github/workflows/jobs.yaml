@@ -144,7 +144,7 @@ jobs:
             --docker-username=${{ github.actor }} \
             --docker-password=${{ secrets.GITHUB_TOKEN }}
           export TESTING_IMAGE=ghcr.io/cpustejovsky/mongotest:"$GITHUB_RUN_ID"
-          envsubst < manifests/deployment.yaml  | kubectl apply -f -
+          envsubst < zarf/k8s/manifests/deployment.yaml  | kubectl apply -f -
           kubectl rollout status deployment myapp
           kubectl exec deploy/myapp -- curl --fail localhost
 
