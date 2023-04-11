@@ -22,3 +22,5 @@ spec:
         - name: myapp
           image: "${TESTING_IMAGE}"
           imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
