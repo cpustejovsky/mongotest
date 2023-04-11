@@ -25,7 +25,7 @@ func main() {
 	cfg := struct {
 		conf.Version
 		Web struct {
-			APIHost         string        `conf:"default:0.0.0.0:80"`
+			APIHost         string        `conf:"default:0.0.0.0:3000"`
 			ReadTimeout     time.Duration `conf:"default:5s"`
 			WriteTimeout    time.Duration `conf:"default:10s"`
 			IdleTimeout     time.Duration `conf:"default:120s"`

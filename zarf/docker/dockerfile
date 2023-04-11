@@ -1,20 +1,14 @@
-FROM golang:1.19 as base
-COPY go.* /mongotest/
-WORKDIR /mongotest
-RUN go env
+# syntax=docker/dockerfile:latest
+FROM golang:1.19 as test
 
-RUN go mod download
 COPY . /mongotest
 
 WORKDIR /mongotest/cmd/web
-RUN go build -o app .
 
-#########################
-FROM base as test
-COPY --from=base /mongotest/cmd/web/app ./
+RUN go build -o mongotest
 
-EXPOSE 80
+EXPOSE 3000
 
 EXPOSE 27017
 
-CMD [ "./app" ]
+CMD [ "./mongotest" ]

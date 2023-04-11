@@ -39,8 +39,7 @@ jobs:
       - name: Build and Push to GHCR
         uses: docker/build-push-action@v4
         with:
-          # TODO: figure out how to get this to work with context
-          # context: "{{defaultContext}}:zarf/docker"
+          path: ./zarf/docker/dockerfile
           push: true
           # custom tag based on randomly generated GitHub run ID
           tags: ghcr.io/cpustejovsky/mongotest:${{ github.run_id }}
@@ -133,12 +132,12 @@ jobs:
         with:
           cluster-name: "test-cluster-1"
           args: >-
+            -p "3000:80@agent:0:direct"
             --agents 1
             --no-lb
             --k3s-arg "--no-deploy=traefik,servicelb,metrics-server@server:*"
 
       - name: Smoke test deployment in k3d Kubernetes
-        # TODO: have this work with a port other than 80
         run: |
           kubectl create secret docker-registry regcred \
             --docker-server=https://ghcr.io \
@@ -148,7 +147,7 @@ jobs:
           envsubst < zarf/k8s/manifests/deployment.yaml  | kubectl apply -f -
           kubectl rollout status deployment myapp
           kubectl describe deployment myapp
-          kubectl exec deploy/myapp -- curl --fail localhost
+          kubectl exec deploy/myapp -- curl --fail http://localhost:3000
 
   # NEXT JOB #######################################################################
   scan-image:
@@ -240,7 +239,7 @@ jobs:
       # see documentation for more info: https://github.com/docker/metadata-action
       - name: Docker Metadata for Final Image Build
         id: docker_meta
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v4
         with:
           images: cpustejovsky/mongotest,ghcr.io/cpustejovsky/mongotest
           flavor: |
