@@ -22,7 +22,7 @@ func New(store store.Repository) *AnimalServer {
 
 func (s *AnimalServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	router := httprouter.New()
-	router.GET("/ping", s.pingHandler)
+	router.GET("/", s.pingHandler)
 	router.GET("/animals", s.animalsHandler)
 	router.GET("/animal/:id", s.animalHandler)
 	router.POST("/animal/new", s.newAnimalHandler)

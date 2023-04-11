@@ -16,4 +16,4 @@ services:
       mongotest:
         condition: service_started
     # run all your tests here against the mongotest service
-    command: curl --fail http://mongotest:3000/animals || exit 1
+    command: curl --fail http://mongotest:80/animals || exit 1

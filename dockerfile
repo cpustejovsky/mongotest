@@ -7,7 +7,7 @@ WORKDIR /mongotest/cmd/web
 
 RUN go build -o mongotest
 
-EXPOSE 3000
+EXPOSE 80
 
 EXPOSE 27017
 
