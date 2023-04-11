@@ -1,27 +1,19 @@
-       version: "3.5"
+version: "3.8"
 services:
   mongotest:
     image: "${TESTING_IMAGE}"
   mongo:
-    container_name: mongo
     image: mongo
+    container_name: mongodb
     restart: always
-    healthcheck:
-      test: echo 'db.runCommand({serverStatus:1}).ok' | mongo admin -u $MONGO_INITDB_ROOT_USERNAME -p $MONGO_INITDB_ROOT_PASSWORD --quiet | grep 1
-      interval: 10s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    volumes:
-      - /data/db
     ports:
       - "27017:27017"
   sut:
     image: "${TESTING_IMAGE}"
     depends_on:
+      mongo:
+          condition: service_started
       mongotest:
         condition: service_started
-      mongo:
-        condition: service_healthy
     # run all your tests here against the mongotest service
     command: curl --fail http://mongotest:3000/animals || exit 1
