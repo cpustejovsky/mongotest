@@ -1,12 +1,5 @@
-version: "3"
+version: "3.8"
 services:
-  app:
-    restart: always
-    image: cpustejovsky/mongotest
-    ports:
-      - "3000:3000"
-    depends_on:
-      - mongo
   mongo:
     container_name: mongo
     image: mongo
