@@ -65,8 +65,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Unit Testing in Docker
-        run: docker run --rm ghcr.io/cpustejovsky/mongotest:"$GITHUB_RUN_ID" go test ./... -short -v
+      - name: Unit Tests
+        run: go test ./... -short -v
 
   # NEXT JOB #######################################################################
   test-integration:
@@ -100,6 +100,14 @@ jobs:
           export TESTING_IMAGE=ghcr.io/cpustejovsky/mongotest:"$GITHUB_RUN_ID"
           echo Testing image: "$TESTING_IMAGE"
           docker compose -f zarf/docker/docker-compose.test.yml up --exit-code-from sut
+
+      - name: Integration Tests
+        run: |
+          docker compose -f zarf/docker/docker-compose.yml up -d
+          docker run --rm ghcr.io/cpustejovsky/mongotest:99 go test ./... -v
+          docker compose -f zarf/docker/docker-compose.yml down
+
+
 
   # NEXT JOB #######################################################################
   test-k3d:
