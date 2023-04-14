@@ -7,6 +7,12 @@ on:
       - main
   pull_request:
 
+env:
+  GO_VERSION: 1.19
+  DOCKERFILE_PATH: ./zarf/docker/dockerfile
+  DOCKER_IMAGE: cpustejovsky/mongotest
+
+
 jobs:
   # FIRST JOB #######################################################################
   test-unit-go:
@@ -40,9 +46,9 @@ jobs:
 
       - name: Integration Test
         run: |
-          docker compose -f zarf/docker/docker-compose.yml up -d
+          docker compose -f zarf/docker/docker-compose.mongo.yml up -d
           go test ./... -v
-          docker compose -f zarf/docker/docker-compose.yml down
+          docker compose -f zarf/docker/docker-compose.mongo.yml down
 
   # NEXT JOB #######################################################################
   build-test-image:
@@ -78,10 +84,10 @@ jobs:
       - name: Build and Push to GHCR
         uses: docker/build-push-action@v4
         with:
-          path: ./zarf/docker/dockerfile
+          path: $DOCKERFILE_PATH
           push: true
           # custom tag based on randomly generated GitHub run ID
-          tags: ghcr.io/cpustejovsky/mongotest:${{ github.run_id }}
+          tags: ghcr.io/$DOCKER_IMAGE:${{ github.run_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
@@ -115,7 +121,7 @@ jobs:
 
       - name: Test healthcheck in Docker Compose
         run: |
-          export TESTING_IMAGE=ghcr.io/cpustejovsky/mongotest:"$GITHUB_RUN_ID"
+          export TESTING_IMAGE=ghcr.io/$DOCKER_IMAGE:"$GITHUB_RUN_ID"
           echo Testing image: "$TESTING_IMAGE"
           docker compose -f zarf/docker/docker-compose.test.yml up --exit-code-from sut
 
@@ -161,7 +167,7 @@ jobs:
             --docker-server=https://ghcr.io \
             --docker-username=${{ github.actor }} \
             --docker-password=${{ secrets.GITHUB_TOKEN }}
-          export TESTING_IMAGE=ghcr.io/cpustejovsky/mongotest:"$GITHUB_RUN_ID"
+          export TESTING_IMAGE=ghcr.io/$DOCKER_IMAGE:"$GITHUB_RUN_ID"
           envsubst < zarf/k8s/manifests/deployment.yaml  | kubectl apply -f -
           kubectl rollout status deployment myapp
           kubectl exec deploy/myapp -- curl --fail http://localhost:3000
@@ -196,12 +202,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull image to scan
-        run: docker pull ghcr.io/cpustejovsky/mongotest:"$GITHUB_RUN_ID"
+        run: docker pull ghcr.io/$DOCKER_IMAGE:"$GITHUB_RUN_ID"
       # like Snyk
       - name: Run Trivy for all CVEs (non-blocking)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ghcr.io/cpustejovsky/mongotest:${{ github.run_id }}
+          image-ref: ghcr.io/$DOCKER_IMAGE:${{ github.run_id }}
           format: table
           exit-code: 0
 
@@ -242,7 +248,7 @@ jobs:
         id: docker_meta
         uses: docker/metadata-action@v4
         with:
-          images: cpustejovsky/mongotest,ghcr.io/cpustejovsky/mongotest
+          images: $DOCKER_IMAGE,ghcr.io/$DOCKER_IMAGE
           flavor: |
             latest=false
           tags: |
@@ -252,6 +258,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           push: true
+          path: $DOCKERFILE_PATH
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
           # enabled by buildx
