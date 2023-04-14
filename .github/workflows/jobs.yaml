@@ -248,7 +248,7 @@ jobs:
         id: docker_meta
         uses: docker/metadata-action@v4
         with:
-          images: "$DOCKER_IMAGE",ghcr.io/"$DOCKER_IMAGE"
+          images: $DOCKER_IMAGE,ghcr.io/"$DOCKER_IMAGE"
           flavor: |
             latest=false
           tags: |
