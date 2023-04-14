@@ -87,7 +87,7 @@ jobs:
           path: $DOCKERFILE_PATH
           push: true
           # custom tag based on randomly generated GitHub run ID
-          tags: ghcr.io/"$DOCKER_IMAGE":${{ github.run_id }}
+          tags: ghcr.io/${{ env.$DOCKER_IMAGE }}:${{ github.run_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
