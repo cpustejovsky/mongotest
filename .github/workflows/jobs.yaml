@@ -55,6 +55,9 @@ jobs:
       packages: write # needed to push docker image to ghcr.io
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
@@ -81,7 +84,7 @@ jobs:
           tags: ghcr.io/cpustejovsky/mongotest:${{ github.run_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
 
   # NEXT JOB #######################################################################
   test-integration-docker:
@@ -213,6 +216,8 @@ jobs:
       pull-requests: write # needed to create and update comments in PRs
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
       # enables building multi-platform
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -252,4 +257,4 @@ jobs:
           # enabled by buildx
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
