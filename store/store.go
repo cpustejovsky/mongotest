@@ -3,11 +3,12 @@ package store
 import (
 	"context"
 	"errors"
+	"log"
+
 	"github.com/cpustejovsky/mongotest/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"log"
 )
 
 type AnimalStore struct {

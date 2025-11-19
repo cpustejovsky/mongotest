@@ -2,14 +2,14 @@ package store_test
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/cpustejovsky/mongotest/models"
 	"github.com/cpustejovsky/mongotest/store"
-	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"testing"
-	"time"
 )
 
 func TestAnimalStore(t *testing.T) {
@@ -18,11 +18,11 @@ func TestAnimalStore(t *testing.T) {
 	}
 	clientOptions := options.Client().
 		ApplyURI("mongodb://localhost:27017/mongotest")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	defer client.Disconnect(ctx)
 	var id1 string
@@ -33,20 +33,31 @@ func TestAnimalStore(t *testing.T) {
 	t.Run("Animal Store New", func(t *testing.T) {
 		animalStore = store.NewAnimalStore(client, "animalstest")
 		_, err = animalStore.Collection.DeleteMany(ctx, bson.D{})
-		assert.Nil(t, err)
+		if err != nil {
+			t.Fatal(err)
+		}
 	})
 	t.Run("Animal Store Create", func(t *testing.T) {
 		newAnimal := models.Animal{
 			Species: animalSpecies,
 		}
 		id1, err = animalStore.Create(newAnimal)
-		assert.Nil(t, err)
-		assert.NotEmpty(t, id1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if id1 != "" {
+			t.Fatal("id was empty")
+		}
+
 	})
 	t.Run("Animal Store Fetch", func(t *testing.T) {
 		animal, err := animalStore.Fetch(id1)
-		assert.Nil(t, err)
-		assert.Equal(t, animalSpecies, animal.Species)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, expect := animalSpecies, animal.Species; got != expect {
+			t.Fatalf("got %v, expected %v\n", got, expect)
+		}
 	})
 	t.Run("Animal Store FetchAll", func(t *testing.T) {
 		newAnimal := models.Animal{
@@ -54,7 +65,9 @@ func TestAnimalStore(t *testing.T) {
 		}
 		id2, err = animalStore.Create(newAnimal)
 		animals, err := animalStore.FetchAll()
-		assert.Nil(t, err)
+		if err != nil {
+			t.Fatal(err)
+		}
 		for _, animal := range animals {
 			if !(animal.ID == id1 || animal.ID == id2) {
 				t.Fatalf("Wanted %v to be %v or %v", animal.ID, id1, id2)

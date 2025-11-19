@@ -3,17 +3,17 @@ package server_test
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/cpustejovsky/mongotest/models"
-	"github.com/cpustejovsky/mongotest/server"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/cpustejovsky/mongotest/models"
+	"github.com/cpustejovsky/mongotest/server"
 )
 
 type fakeStore struct {
-	hit     bool
-	wantIDs []string
+	hit       bool
+	expectIDs []string
 }
 
 func (fs *fakeStore) Create(animal models.Animal) (string, error) {
@@ -21,33 +21,39 @@ func (fs *fakeStore) Create(animal models.Animal) (string, error) {
 }
 
 func (fs *fakeStore) Fetch(id string) (*models.Animal, error) {
-	if id != fs.wantIDs[0] {
-		return nil, fmt.Errorf("wrong ID; got %v, wanted %v", id, fs.wantIDs)
+	if id != fs.expectIDs[0] {
+		return nil, fmt.Errorf("wrong ID; got %v, expected %v", id, fs.expectIDs)
 	}
-	return &models.Animal{ID: fs.wantIDs[0]}, nil
+	return &models.Animal{ID: fs.expectIDs[0]}, nil
 }
 
 func (fs *fakeStore) FetchAll() ([]models.Animal, error) {
-	return []models.Animal{{ID: fs.wantIDs[0]}, {ID: fs.wantIDs[1]}}, nil
+	return []models.Animal{{ID: fs.expectIDs[0]}, {ID: fs.expectIDs[1]}}, nil
 }
 
-var wantID1 = "6373c7112476fec678ed0d3b"
-var wantID2 = "6373c7112476fec678ed0d3b"
-var fs = fakeStore{hit: false, wantIDs: []string{wantID1, wantID2}}
+var expectID1 = "6373c7112476fec678ed0d3b"
+var expectID2 = "6373c7112476fec678ed0d3b"
+var fs = fakeStore{hit: false, expectIDs: []string{expectID1, expectID2}}
 
 func TestGetAnimalByID(t *testing.T) {
 	t.Run("returns number of snakes", func(t *testing.T) {
-		wantId := "6373c7112476fec678ed0d3b"
-		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/animal/%v", wantId), nil)
-		//req, err := http.NewRequest(http.MethodGet, "/animal/:id", nil)
+		expectId := "6373c7112476fec678ed0d3b"
+		uri := "/animal/" + expectId
+		req, err := http.NewRequest(http.MethodGet, uri, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 		res := httptest.NewRecorder()
-		assert.Nil(t, err)
 		animalServer := server.New(&fs)
 		animalServer.ServeHTTP(res, req)
-		var a models.Animal
-		err = json.Unmarshal(res.Body.Bytes(), &a)
-		assert.Nil(t, err)
-		assert.Equal(t, wantId, a.ID)
+		var animals models.Animal
+		err = json.Unmarshal(res.Body.Bytes(), &animals)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, expect := animals.ID, expectId; got != expect {
+			t.Fatalf("got: %v; expect: %v\n", got, expect)
+		}
 	})
 }
 
@@ -55,16 +61,24 @@ func TestGetAnimals(t *testing.T) {
 	t.Run("returns number of snakes", func(t *testing.T) {
 		req, err := http.NewRequest(http.MethodGet, "/animals", nil)
 		res := httptest.NewRecorder()
-		assert.Nil(t, err)
-		fs := fakeStore{hit: false, wantIDs: []string{wantID1, wantID2}}
+		if err != nil {
+			t.Fatal(err)
+		}
+		fs := fakeStore{hit: false, expectIDs: []string{expectID1, expectID2}}
 		animalServer := server.New(&fs)
 		animalServer.ServeHTTP(res, req)
-		var a []models.Animal
-		err = json.Unmarshal(res.Body.Bytes(), &a)
-		assert.Nil(t, err)
-		assert.Equal(t, len(fs.wantIDs), len(a))
-		for _, animal := range a {
-			assert.True(t, assert.Equal(t, animal.ID, wantID1) || assert.Equal(t, animal.ID, wantID2))
+		var animals []models.Animal
+		err = json.Unmarshal(res.Body.Bytes(), &animals)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, expect := len(fs.expectIDs), len(animals); got != expect {
+			t.Fatalf("got: %v; expect: %v\n", got, expect)
+		}
+		for _, animal := range animals {
+			if got := animal.ID; got != expectID1 && got != expectID2 {
+				t.Fatalf("got %v; expected %v or %v\n", got, expectID1, expectID2)
+			}
 		}
 	})
 }
